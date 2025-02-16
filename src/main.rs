@@ -1,34 +1,43 @@
-use std::env;
+use clap::{Parser, Subcommand};
 use std::fs;
+use std::path::PathBuf;
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        eprintln!("Usage: {} tokenize <filename>", args[0]);
-        return;
-    }
+use codecrafters_interpreter::*;
 
-    let command = &args[1];
-    let filename = &args[2];
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    match command.as_str() {
-        "tokenize" => {
-            eprintln!("Logs from your program will appear here!");
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// tokenize a file
+    Tokenize {
+        /// source file
+        filename: PathBuf,
+    },
+}
 
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                eprintln!("Failed to read file {}", filename);
-                String::new()
-            });
+fn main() -> miette::Result<()> {
+    let args = Cli::parse();
+    match args.command {
+        Commands::Tokenize { ref filename } => {
+            let file_contents = fs::read_to_string(filename).map_err(|err| {
+                miette::miette!(err).context(format!("Failed to read file {}", filename.display()))
+            })?;
 
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
+            if file_contents.is_empty() {
                 println!("EOF  null");
+                return Ok(());
+            }
+            let scanner = Scanner::new(&file_contents);
+            for token in scanner {
+                let token = token?;
+                println!("{}", token);
             }
         }
-        _ => {
-            eprintln!("Unknown command: {}", command);
-            return;
-        }
     }
+    Ok(())
 }
