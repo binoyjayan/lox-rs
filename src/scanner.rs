@@ -1,5 +1,6 @@
-use miette::{Error, LabeledSpan};
+use miette::{Error, LabeledSpan, SourceSpan};
 
+use crate::error::SingleTokenError;
 use crate::token::{Token, TokenKind};
 
 pub struct Scanner<'de> {
@@ -69,14 +70,12 @@ impl<'de> Iterator for Scanner<'de> {
                 'a'..='z' | 'A'..='Z' | '_' => Started::Ident,
                 c if c.is_whitespace() => continue,
                 _ => {
-                    return Some(Err(miette::miette!(
-                        labels = vec![LabeledSpan::at(
-                            self.byte - c.len_utf8()..self.byte,
-                            "this character"
-                        )],
-                        "Unexpected token '{c}' in input",
-                    )
-                    .with_source_code(self.whole.to_string())))
+                    return Some(Err(SingleTokenError {
+                        src: self.whole.to_string(),
+                        token: c,
+                        err_span: SourceSpan::from(self.byte - c.len_utf8()..self.byte),
+                    }
+                    .into()));
                 }
             };
 
