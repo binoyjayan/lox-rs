@@ -100,15 +100,22 @@ impl<'de> Iterator for Scanner<'de> {
                 Started::Number => {
                     let first_non_digit = c_onwards
                         .find(|c| !matches!(c, '.' | '0'..='9'))
-                        .unwrap_or_else(|| c_onwards.len());
+                        .unwrap_or(c_onwards.len());
                     let mut literal = &c_onwards[..first_non_digit];
                     let mut dotted = literal.splitn(3, '.');
-                    // If there are two dots (i.e. if there are three parts of the split)
-                    if let (Some(one), Some(two), Some(_)) =
-                        (dotted.next(), dotted.next(), dotted.next())
-                    {
-                        // Use only the first two parts
-                        literal = &literal[..one.len() + 1 + two.len()];
+                    // Check number of occurrences of dots ('.')
+                    match (dotted.next(), dotted.next(), dotted.next()) {
+                        (Some(one), Some(two), Some(_)) => {
+                            // If there are three parts, use only the first two parts, ignore the third
+                            literal = &literal[..one.len() + 1 + two.len()];
+                        }
+                        (Some(one), Some(""), None) => {
+                            // If there are two parts, and the second part is empty, use only the first part
+                            literal = &literal[..one.len()];
+                        }
+                        _ => {
+                            // do nothing
+                        }
                     }
                     let extra_bytes = literal.len() - c.len_utf8();
                     self.byte += extra_bytes;
@@ -128,7 +135,34 @@ impl<'de> Iterator for Scanner<'de> {
                     };
                     return new_token(TokenKind::Number(num), literal);
                 }
-                Started::Ident => todo!(),
+                Started::Ident => {
+                    let first_non_ident = c_onwards
+                        .find(|c| !matches!(c, '_' | 'a'..='z' | 'A'..='Z' | '0'..='9'))
+                        .unwrap_or(c_onwards.len());
+                    let literal = &c_onwards[..first_non_ident];
+                    let extra_bytes = literal.len() - c.len_utf8();
+                    self.byte += extra_bytes;
+                    self.rest = &self.rest[extra_bytes..];
+                    let kind = match literal {
+                        "and" => TokenKind::And,
+                        "class" => TokenKind::Class,
+                        "else" => TokenKind::Else,
+                        "false" => TokenKind::False,
+                        "for" => TokenKind::For,
+                        "fun" => TokenKind::Fun,
+                        "if" => TokenKind::If,
+                        "nil" => TokenKind::Nil,
+                        "or" => TokenKind::Or,
+                        "return" => TokenKind::Return,
+                        "super" => TokenKind::Super,
+                        "this" => TokenKind::This,
+                        "true" => TokenKind::True,
+                        "var" => TokenKind::Var,
+                        "while" => TokenKind::While,
+                        _ => TokenKind::Ident,
+                    };
+                    return new_token(kind, literal);
+                }
             };
         }
     }

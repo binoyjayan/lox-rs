@@ -29,7 +29,7 @@ fn main() -> miette::Result<()> {
             })?;
 
             if file_contents.is_empty() {
-                println!("EOF null");
+                println!("EOF  null");
                 return Ok(());
             }
             let scanner = Scanner::new(&file_contents);
@@ -37,7 +37,7 @@ fn main() -> miette::Result<()> {
                 let token = token?;
                 println!("{}", token);
             }
-            println!("EOF null");
+            println!("EOF  null");
         }
     }
     Ok(())
