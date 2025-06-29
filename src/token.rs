@@ -70,7 +70,13 @@ impl std::fmt::Display for Token<'_> {
             TokenKind::Slash => write!(f, "SLASH {literal} null"),
             TokenKind::String => write!(f, "STRING {literal} {}", Token::unescape(literal)),
             TokenKind::Ident => write!(f, "IDENTIFIER {literal} null"),
-            TokenKind::Number(n) => write!(f, "NUMBER {literal} {n}"),
+            TokenKind::Number(n) => {
+                if n.fract() == 0.0 {
+                    write!(f, "NUMBER {literal} {:.1}", n)
+                } else {
+                    write!(f, "NUMBER {literal} {}", n)
+                }
+            }
             TokenKind::And => write!(f, "AND {literal} null"),
             TokenKind::Class => write!(f, "CLASS {literal} null"),
             TokenKind::Else => write!(f, "ELSE {literal} null"),
