@@ -43,6 +43,7 @@ pub enum TokenKind {
     True,
     Var,
     While,
+    Print,
 }
 
 impl std::fmt::Display for Token<'_> {
@@ -70,6 +71,7 @@ impl std::fmt::Display for Token<'_> {
             TokenKind::Slash => write!(f, "SLASH {literal} null"),
             TokenKind::String => write!(f, "STRING {literal} {}", Token::unescape(literal)),
             TokenKind::Ident => write!(f, "IDENTIFIER {literal} null"),
+            TokenKind::Print => write!(f, "PRINT {literal} null"),
             TokenKind::Number(n) => {
                 if n.fract() == 0.0 {
                     write!(f, "NUMBER {literal} {:.1}", n)

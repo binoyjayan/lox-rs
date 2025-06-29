@@ -189,6 +189,7 @@ impl<'de> Iterator for Scanner<'de> {
                         "true" => TokenKind::True,
                         "var" => TokenKind::Var,
                         "while" => TokenKind::While,
+                        "print" => TokenKind::Print,
                         _ => TokenKind::Ident,
                     };
                     return new_token(kind, literal);
