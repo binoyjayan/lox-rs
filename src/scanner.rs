@@ -34,6 +34,7 @@ impl<'de> Iterator for Scanner<'de> {
             self.byte += c.len_utf8();
 
             enum Started {
+                Slash,
                 IfEqualElse(TokenKind, TokenKind),
                 String,
                 Number,
@@ -60,7 +61,7 @@ impl<'de> Iterator for Scanner<'de> {
                 '+' => return char_token(TokenKind::Plus),
                 ';' => return char_token(TokenKind::Semicolon),
                 '*' => return char_token(TokenKind::Star),
-                '/' => return char_token(TokenKind::Slash),
+                '/' => Started::Slash,
                 '!' => Started::IfEqualElse(TokenKind::BangEqual, TokenKind::Bang),
                 '=' => Started::IfEqualElse(TokenKind::EqualEqual, TokenKind::Equal),
                 '<' => Started::IfEqualElse(TokenKind::LessEqual, TokenKind::Less),
@@ -80,6 +81,19 @@ impl<'de> Iterator for Scanner<'de> {
             };
 
             match started {
+                Started::Slash => {
+                    if self.rest.starts_with('/') {
+                        // Single-line comment
+                        let end_of_line = self.rest.find('\n').unwrap_or(self.rest.len());
+                        let comment = &self.rest[..end_of_line];
+                        self.rest = &self.rest[end_of_line..];
+                        self.byte += comment.len();
+                        // Skip comments
+                        continue;
+                    } else {
+                        return char_token(TokenKind::Slash);
+                    }
+                }
                 Started::IfEqualElse(first, second) => {
                     // Remove whitespace before checking for '='
                     self.rest = self.rest.trim_start();
