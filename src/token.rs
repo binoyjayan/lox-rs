@@ -91,7 +91,9 @@ impl std::fmt::Display for Token<'_> {
 }
 
 impl Token<'_> {
-    fn unescape<'de>(_s: &'de str) -> std::borrow::Cow<'de, str> {
-        todo!()
+    fn unescape<'de>(s: &'de str) -> std::borrow::Cow<'de, str> {
+        // Since string have no escaping, they can't contain ", so trim won't trim multiple
+        let s = s.trim_matches('"');
+        std::borrow::Cow::Borrowed(s)
     }
 }

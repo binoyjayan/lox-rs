@@ -1,6 +1,6 @@
 use miette::{Error, LabeledSpan, SourceSpan};
 
-use crate::error::SingleTokenError;
+use crate::error::{SingleTokenError, StringTermError};
 use crate::token::{Token, TokenKind};
 
 pub struct Scanner<'de> {
@@ -81,6 +81,24 @@ impl<'de> Iterator for Scanner<'de> {
             };
 
             match started {
+                Started::String => {
+                    if let Some(end) = self.rest.find('"') {
+                        // Found the end of the string
+                        let literal = &c_onwards[..end + 1 + 1];
+                        self.byte += end + 1;
+                        self.rest = &self.rest[end + 1..];
+                        return new_token(TokenKind::String, literal);
+                    } else {
+                        let e = StringTermError {
+                            src: self.whole.to_string(),
+                            err_span: SourceSpan::from(self.byte - c.len_utf8()..self.whole.len()),
+                        }
+                        .into();
+                        self.byte += self.rest.len();
+                        self.rest = "";
+                        return Some(Err(e));
+                    }
+                }
                 Started::Slash => {
                     if self.rest.starts_with('/') {
                         // Single-line comment
@@ -109,7 +127,6 @@ impl<'de> Iterator for Scanner<'de> {
                     }
                     return char_token(second);
                 }
-                Started::String => todo!(),
                 Started::Number => {
                     let first_non_digit = c_onwards
                         .find(|c| !matches!(c, '.' | '0'..='9'))

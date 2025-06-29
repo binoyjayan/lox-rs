@@ -47,6 +47,10 @@ fn main() -> miette::Result<()> {
                                 unrecognized.token
                             );
                         }
+                        if let Some(unrecognized) = e.downcast_ref::<StringTermError>() {
+                            any_err = true;
+                            eprintln!("[line {}] Error: Unterminated string.", unrecognized.line());
+                        }
                         continue;
                     }
                 };
