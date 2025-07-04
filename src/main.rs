@@ -67,9 +67,6 @@ fn main() -> miette::Result<()> {
                 println!("{}", token);
             }
             println!("EOF  null");
-            if any_err {
-                std::process::exit(65);
-            }
         }
         Commands::Parse { ref filename } => {
             let file_contents = fs::read_to_string(filename).map_err(|err| {
@@ -86,8 +83,8 @@ fn main() -> miette::Result<()> {
                     println!("{tree}");
                 }
                 Err(e) => {
+                    any_err = true;
                     eprintln!("{e:?}");
-                    std::process::exit(65);
                 }
             }
         }
@@ -106,11 +103,14 @@ fn main() -> miette::Result<()> {
                     println!("{tree}");
                 }
                 Err(e) => {
+                    any_err = true;
                     eprintln!("{e:?}");
-                    std::process::exit(65);
                 }
             }
         }
+    }
+    if any_err {
+        std::process::exit(65);
     }
     Ok(())
 }
