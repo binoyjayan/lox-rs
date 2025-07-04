@@ -1,10 +1,10 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser as ClapParser, Subcommand};
 use std::fs;
 use std::path::PathBuf;
 
 use codecrafters_interpreter::*;
 
-#[derive(Parser)]
+#[derive(ClapParser)]
 #[command(version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -15,6 +15,16 @@ struct Cli {
 enum Commands {
     /// tokenize a file
     Tokenize {
+        /// source file
+        filename: PathBuf,
+    },
+    /// Parse a file
+    Parse {
+        /// source file
+        filename: PathBuf,
+    },
+    /// Run a file
+    Run {
         /// source file
         filename: PathBuf,
     },
@@ -59,6 +69,46 @@ fn main() -> miette::Result<()> {
             println!("EOF  null");
             if any_err {
                 std::process::exit(65);
+            }
+        }
+        Commands::Parse { ref filename } => {
+            let file_contents = fs::read_to_string(filename).map_err(|err| {
+                miette::miette!(err).context(format!("Failed to read file {}", filename.display()))
+            })?;
+
+            if file_contents.is_empty() {
+                println!("EOF  null");
+                return Ok(());
+            }
+            let parser = Parser::new(&file_contents);
+            match parser.parse_expr() {
+                Ok(tree) => {
+                    println!("{tree}");
+                }
+                Err(e) => {
+                    eprintln!("{e:?}");
+                    std::process::exit(65);
+                }
+            }
+        }
+        Commands::Run { ref filename } => {
+            let file_contents = fs::read_to_string(filename).map_err(|err| {
+                miette::miette!(err).context(format!("Failed to read file {}", filename.display()))
+            })?;
+
+            if file_contents.is_empty() {
+                println!("EOF  null");
+                return Ok(());
+            }
+            let parser = Parser::new(&file_contents);
+            match parser.parse() {
+                Ok(tree) => {
+                    println!("{tree}");
+                }
+                Err(e) => {
+                    eprintln!("{e:?}");
+                    std::process::exit(65);
+                }
             }
         }
     }

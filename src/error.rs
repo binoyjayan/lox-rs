@@ -1,6 +1,10 @@
 use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
 
+#[derive(Debug, Error, Diagnostic)]
+#[error("Unexpected EOF")]
+pub struct Eof;
+
 #[derive(Diagnostic, Debug, Error)]
 #[error("Unexpected token '{token}' in input")]
 pub struct SingleTokenError {

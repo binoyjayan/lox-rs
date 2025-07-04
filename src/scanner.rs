@@ -1,12 +1,13 @@
 use miette::{Error, LabeledSpan, SourceSpan};
 
-use crate::error::{SingleTokenError, StringTermError};
+use crate::error::{Eof, SingleTokenError, StringTermError};
 use crate::token::{Token, TokenKind};
 
 pub struct Scanner<'de> {
     whole: &'de str,
     rest: &'de str,
     byte: usize,
+    peeked: Option<Result<Token<'de>, Error>>,
 }
 
 /// A scanner for the lox language.
@@ -16,7 +17,41 @@ impl<'de> Scanner<'de> {
             whole: input,
             rest: input,
             byte: 0,
+            peeked: None,
         }
+    }
+
+    pub fn expect(&mut self, expected: TokenKind, unexpected: &str) -> Result<Token<'de>, Error> {
+        self.expect_where(|next| next.kind == expected, unexpected)
+    }
+
+    pub fn expect_where(
+        &mut self,
+        mut check: impl FnMut(&Token<'de>) -> bool,
+        unexpected: &str,
+    ) -> Result<Token<'de>, Error> {
+        match self.next() {
+            Some(Ok(token)) if check(&token) => Ok(token),
+            Some(Ok(token)) => Err(miette::miette! {
+                labels = vec![LabeledSpan::at(
+                    token.offset..token.offset + token.literal.len(), "here"
+                )],
+                help = format!("Unexpected {token:?}"),
+                "{unexpected}",
+            }
+            .with_source_code(self.whole.to_string())),
+            Some(Err(e)) => Err(e),
+            None => Err(Eof.into()),
+        }
+    }
+
+    pub fn peek(&mut self) -> Option<&Result<Token<'de>, Error>> {
+        if self.peeked.is_some() {
+            return self.peeked.as_ref();
+        }
+
+        self.peeked = self.next();
+        self.peeked.as_ref()
     }
 }
 
@@ -25,9 +60,13 @@ impl<'de> Iterator for Scanner<'de> {
 
     /// Returns the next token after consuming the input.
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(peeked) = self.peeked.take() {
+            return Some(peeked);
+        }
         loop {
             let mut chars = self.rest.chars();
             let c = chars.next()?;
+            let c_at = self.byte;
             let char_str = &self.rest[..c.len_utf8()];
             let c_onwards = self.rest;
             self.rest = chars.as_str();
@@ -42,13 +81,10 @@ impl<'de> Iterator for Scanner<'de> {
             }
 
             // Single character tokens
-            let char_token = |kind: TokenKind| {
-                Some(Ok(Token {
-                    literal: char_str,
-                    kind,
-                }))
+            let char_token = |kind: TokenKind| Some(Ok(Token::new(char_str, kind, c_at)));
+            let new_token = |kind: TokenKind, literal: &'de str, at: usize| {
+                Some(Ok(Token::new(literal, kind, at)))
             };
-            let new_token = |kind: TokenKind, literal: &'de str| Some(Ok(Token { literal, kind }));
 
             let started = match c {
                 '(' => return char_token(TokenKind::LeftParen),
@@ -87,7 +123,7 @@ impl<'de> Iterator for Scanner<'de> {
                         let literal = &c_onwards[..end + 1 + 1];
                         self.byte += end + 1;
                         self.rest = &self.rest[end + 1..];
-                        return new_token(TokenKind::String, literal);
+                        return new_token(TokenKind::String, literal, c_at);
                     } else {
                         let e = StringTermError {
                             src: self.whole.to_string(),
@@ -123,7 +159,7 @@ impl<'de> Iterator for Scanner<'de> {
                         let span = &c_onwards[..c.len_utf8() + trimmed + 1];
                         self.rest = &self.rest[1..];
                         self.byte += 1;
-                        return new_token(first, span);
+                        return new_token(first, span, c_at);
                     }
                     return char_token(second);
                 }
@@ -163,7 +199,7 @@ impl<'de> Iterator for Scanner<'de> {
                             .with_source_code(self.whole.to_string())))
                         }
                     };
-                    return new_token(TokenKind::Number(num), literal);
+                    return new_token(TokenKind::Number(num), literal, c_at);
                 }
                 Started::Ident => {
                     let first_non_ident = c_onwards
@@ -192,7 +228,7 @@ impl<'de> Iterator for Scanner<'de> {
                         "print" => TokenKind::Print,
                         _ => TokenKind::Ident,
                     };
-                    return new_token(kind, literal);
+                    return new_token(kind, literal, c_at);
                 }
             };
         }

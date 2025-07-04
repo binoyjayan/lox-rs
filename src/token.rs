@@ -2,6 +2,17 @@
 pub struct Token<'de> {
     pub literal: &'de str,
     pub kind: TokenKind,
+    pub offset: usize,
+}
+
+impl<'de> Token<'de> {
+    pub fn new(literal: &'de str, kind: TokenKind, offset: usize) -> Self {
+        Self {
+            literal,
+            kind,
+            offset,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -99,7 +110,7 @@ impl std::fmt::Display for Token<'_> {
 }
 
 impl Token<'_> {
-    fn unescape<'de>(s: &'de str) -> std::borrow::Cow<'de, str> {
+    pub fn unescape<'de>(s: &'de str) -> std::borrow::Cow<'de, str> {
         // Since string have no escaping, they can't contain ", so trim won't trim multiple
         let s = s.trim_matches('"');
         std::borrow::Cow::Borrowed(s)
